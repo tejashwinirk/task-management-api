@@ -124,9 +124,20 @@ task-management-api/
 
 ## Storage
 
-This project uses an in-memory Python list for task storage.
+## Storage
 
-This means tasks are reset whenever the server restarts. No external database is used.
+This project uses SQLite for persistent task storage.
+
+The database file is `tasks.db` and is automatically created when the application starts. The `tasks` table is also created automatically if it does not already exist.
+
+Unlike the original in-memory version, tasks stored in SQLite persist when the FastAPI server is stopped and restarted.
+
+To inspect the database manually, open `tasks.db` using DB Browser for SQLite.
+
+### Example SQL Query
+
+```sql
+SELECT * FROM tasks;
 
 ## Status Codes
 
