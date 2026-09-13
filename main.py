@@ -6,14 +6,9 @@ app = FastAPI()
 
 initialize_database()
 
+
 class TaskCreate(BaseModel):
     title: str | None = None
-
-tasks = [
-    {"id": 1, "title": "Learn FastAPI"},
-    {"id": 2, "title": "Build CRUD API"},
-    {"id": 3, "title": "Test the API"}
-]
 
 
 @app.get("/")
@@ -34,6 +29,7 @@ def get_tasks():
     cursor.execute("SELECT id, title, done FROM tasks")
     rows = cursor.fetchall()
 
+    cursor.close()
     connection.close()
 
     return [
@@ -48,11 +44,12 @@ def get_task(task_id: int):
     cursor = connection.cursor()
 
     cursor.execute(
-        "SELECT id, title, done FROM tasks WHERE id = ?",
+        "SELECT id, title, done FROM tasks WHERE id = %s",
         (task_id,)
     )
     row = cursor.fetchone()
 
+    cursor.close()
     connection.close()
 
     if row is None:
@@ -64,6 +61,7 @@ def get_task(task_id: int):
         "done": bool(row[2])
     }
 
+
 @app.post("/tasks", status_code=201)
 def create_task(task: TaskCreate):
     if not task.title or not task.title.strip():
@@ -73,14 +71,15 @@ def create_task(task: TaskCreate):
     cursor = connection.cursor()
 
     cursor.execute(
-        "INSERT INTO tasks (title, done) VALUES (?, ?)",
-        (task.title, 0)
+        "INSERT INTO tasks (title, done) VALUES (%s, %s) RETURNING id",
+        (task.title, False)
     )
+
+    new_task_id = cursor.fetchone()[0]
 
     connection.commit()
 
-    new_task_id = cursor.lastrowid
-
+    cursor.close()
     connection.close()
 
     return {
@@ -88,6 +87,7 @@ def create_task(task: TaskCreate):
         "title": task.title,
         "done": False
     }
+
 
 @app.put("/tasks/{task_id}")
 def update_task(task_id: int, task: TaskCreate):
@@ -98,22 +98,24 @@ def update_task(task_id: int, task: TaskCreate):
     cursor = connection.cursor()
 
     cursor.execute(
-        "UPDATE tasks SET title = ?, done = ? WHERE id = ?",
-        (task.title, 0, task_id)
+        "UPDATE tasks SET title = %s, done = %s WHERE id = %s",
+        (task.title, False, task_id)
     )
 
     if cursor.rowcount == 0:
+        cursor.close()
         connection.close()
         raise HTTPException(status_code=404, detail="Task not found")
 
     connection.commit()
 
     cursor.execute(
-        "SELECT id, title, done FROM tasks WHERE id = ?",
+        "SELECT id, title, done FROM tasks WHERE id = %s",
         (task_id,)
     )
     row = cursor.fetchone()
 
+    cursor.close()
     connection.close()
 
     return {
@@ -129,15 +131,18 @@ def delete_task(task_id: int):
     cursor = connection.cursor()
 
     cursor.execute(
-        "DELETE FROM tasks WHERE id = ?",
+        "DELETE FROM tasks WHERE id = %s",
         (task_id,)
     )
 
     if cursor.rowcount == 0:
+        cursor.close()
         connection.close()
         raise HTTPException(status_code=404, detail="Task not found")
 
     connection.commit()
+
+    cursor.close()
     connection.close()
 
     return

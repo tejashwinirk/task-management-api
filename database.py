@@ -1,10 +1,14 @@
-import sqlite3
+import os
+import psycopg
+from dotenv import load_dotenv
 
-DB_NAME = "tasks.db"
+load_dotenv()
+
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 
 def get_connection():
-    return sqlite3.connect(DB_NAME)
+    return psycopg.connect(DATABASE_URL)
 
 
 def initialize_database():
@@ -13,9 +17,9 @@ def initialize_database():
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS tasks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             title TEXT NOT NULL,
-            done BOOLEAN NOT NULL DEFAULT 0
+            done BOOLEAN NOT NULL DEFAULT FALSE
         )
     """)
 
@@ -24,13 +28,14 @@ def initialize_database():
 
     if count == 0:
         cursor.executemany(
-            "INSERT INTO tasks (title, done) VALUES (?, ?)",
+            "INSERT INTO tasks (title, done) VALUES (%s, %s)",
             [
-                ("Learn FastAPI", 0),
-                ("Build CRUD API", 0),
-                ("Test the API", 0)
+                ("Learn FastAPI", False),
+                ("Build CRUD API", False),
+                ("Test the API", False)
             ]
         )
 
     connection.commit()
+    cursor.close()
     connection.close()
