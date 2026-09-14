@@ -7,6 +7,36 @@ app = FastAPI()
 
 security = HTTPBearer(auto_error=False)
 
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security)
+):
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise HTTPException(
+            status_code=401,
+            detail="Access token required"
+        )
+
+    token = credentials.credentials
+
+    try:
+        response = supabase.auth.get_user(token)
+
+        if response.user is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid or expired token"
+            )
+
+        return response.user
+
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token"
+        )
+
 initialize_database()
 
 
@@ -105,38 +135,23 @@ def public_info():
 
 
 @app.get("/protected/profile")
-def protected_profile(
-    credentials: HTTPAuthorizationCredentials | None = Depends(security)
-):
-    if credentials is None or credentials.scheme.lower() != "bearer":
-        raise HTTPException(
-            status_code=401,
-            detail="Access token required"
-        )
+def protected_profile(user=Depends(get_current_user)):
+    return {
+        "id": user.id,
+        "email": user.email
+    }
 
-    token = credentials.credentials
+@app.get("/protected/dashboard")
+def protected_dashboard(user=Depends(get_current_user)):
+    return {
+        "message": "Welcome to the protected dashboard",
+        "user_id": user.id,
+        "email": user.email
+    }
 
-    try:
-        response = supabase.auth.get_user(token)
-
-        if response.user is None:
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid or expired token"
-            )
-
-        return {
-            "id": response.user.id,
-            "email": response.user.email
-        }
-
-    except HTTPException:
-        raise
-    except Exception:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid or expired token"
-        )
+@app.post("/auth/logout", status_code=204)
+def logout(user=Depends(get_current_user)):
+    return
 
 
 @app.get("/tasks")
