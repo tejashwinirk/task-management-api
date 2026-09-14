@@ -1,8 +1,11 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from database import initialize_database, get_connection, supabase
 
 app = FastAPI()
+
+security = HTTPBearer(auto_error=False)
 
 initialize_database()
 
@@ -92,6 +95,28 @@ def login(auth: AuthRequest):
             status_code=401,
             detail="Invalid login credentials"
         )
+
+
+@app.get("/public/info")
+def public_info():
+    return {
+        "message": "This is a public endpoint"
+    }
+
+
+@app.get("/protected/profile")
+def protected_profile(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security)
+):
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise HTTPException(
+            status_code=401,
+            detail="Access token required"
+        )
+
+    return {
+        "message": "Protected profile endpoint"
+    }
 
 
 @app.get("/tasks")
