@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from database import initialize_database, get_connection
+from database import initialize_database, get_connection, supabase
 
 app = FastAPI()
 
@@ -11,6 +11,11 @@ class TaskCreate(BaseModel):
     title: str | None = None
 
 
+class AuthRequest(BaseModel):
+    email: str
+    password: str
+
+
 @app.get("/")
 def root():
     return {"message": "Task API is running!"}
@@ -19,6 +24,74 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.post("/auth/signup", status_code=201)
+def signup(auth: AuthRequest):
+    if not auth.email.strip() or not auth.password.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Email and password are required"
+        )
+
+    try:
+        response = supabase.auth.sign_up({
+            "email": auth.email,
+            "password": auth.password
+        })
+
+        if response.user is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Signup failed"
+            )
+
+        return {
+            "id": response.user.id,
+            "email": response.user.email
+        }
+
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail="Signup failed"
+        )
+
+
+@app.post("/auth/login")
+def login(auth: AuthRequest):
+    if not auth.email.strip() or not auth.password.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Email and password are required"
+        )
+
+    try:
+        response = supabase.auth.sign_in_with_password({
+            "email": auth.email,
+            "password": auth.password
+        })
+
+        if response.session is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid login credentials"
+            )
+
+        return {
+            "access_token": response.session.access_token,
+            "refresh_token": response.session.refresh_token
+        }
+
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid login credentials"
+        )
 
 
 @app.get("/tasks")
@@ -53,7 +126,10 @@ def get_task(task_id: int):
     connection.close()
 
     if row is None:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Task not found"
+        )
 
     return {
         "id": row[0],
@@ -65,7 +141,10 @@ def get_task(task_id: int):
 @app.post("/tasks", status_code=201)
 def create_task(task: TaskCreate):
     if not task.title or not task.title.strip():
-        raise HTTPException(status_code=400, detail="Title cannot be empty")
+        raise HTTPException(
+            status_code=400,
+            detail="Title cannot be empty"
+        )
 
     connection = get_connection()
     cursor = connection.cursor()
@@ -92,7 +171,10 @@ def create_task(task: TaskCreate):
 @app.put("/tasks/{task_id}")
 def update_task(task_id: int, task: TaskCreate):
     if not task.title or not task.title.strip():
-        raise HTTPException(status_code=400, detail="Title cannot be empty")
+        raise HTTPException(
+            status_code=400,
+            detail="Title cannot be empty"
+        )
 
     connection = get_connection()
     cursor = connection.cursor()
@@ -105,7 +187,11 @@ def update_task(task_id: int, task: TaskCreate):
     if cursor.rowcount == 0:
         cursor.close()
         connection.close()
-        raise HTTPException(status_code=404, detail="Task not found")
+
+        raise HTTPException(
+            status_code=404,
+            detail="Task not found"
+        )
 
     connection.commit()
 
@@ -138,7 +224,11 @@ def delete_task(task_id: int):
     if cursor.rowcount == 0:
         cursor.close()
         connection.close()
-        raise HTTPException(status_code=404, detail="Task not found")
+
+        raise HTTPException(
+            status_code=404,
+            detail="Task not found"
+        )
 
     connection.commit()
 
