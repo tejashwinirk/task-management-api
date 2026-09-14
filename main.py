@@ -3,7 +3,11 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from database import initialize_database, get_connection, supabase
 
-app = FastAPI()
+app = FastAPI(
+    swagger_ui_parameters={
+        "persistAuthorization": True
+    }
+)
 
 security = HTTPBearer(auto_error=False)
 
