@@ -1,0 +1,15 @@
+{
+  "started_at": "2026-09-15T15:53:36.145354+00:00",
+  "finished_at": "2026-09-15T15:53:47.176989+00:00",
+  "duration_seconds": 11.031635,
+  "pages_fetched": 0,
+  "cache_hits": 63,
+  "valid_records": 60,
+  "invalid_records": 0,
+  "failed_pages": [
+    {
+      "url": "https://books.toscrape.com/catalogue/fake-book-for-testing/index.html",
+      "error": "Request failed with status 404"
+    }
+  ]
+}
